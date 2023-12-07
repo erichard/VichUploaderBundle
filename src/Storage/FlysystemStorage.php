@@ -5,6 +5,7 @@ namespace Vich\UploaderBundle\Storage;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\MountManager;
+use League\Flysystem\UnableToGeneratePublicUrl;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\Exception\CannotWriteFileException;
 use Symfony\Component\HttpFoundation\File\File;
@@ -75,7 +76,27 @@ final class FlysystemStorage extends AbstractStorage
 
         return $path;
     }
+    
+    public function resolveUri(object|array $obj, string $fieldName = null, string $className = null): ?string
+    {
+        [$mapping, $filename] = $this->getFilename($obj, $fieldName, $className);
 
+        if (empty($filename)) {
+            return null;
+        }
+
+        $fs = $this->getFilesystem($mapping);
+
+        try {
+            return $fs->publicUrl($filename);
+        } catch (UnableToGeneratePublicUrl $exception) {
+            $dir = $mapping->getUploadDir($obj);
+            $path = !empty($dir) ? $dir.'/'.$filename : $filename;
+
+            return $mapping->getUriPrefix().'/'.$path;
+        }
+    }
+ 
     public function resolveStream(object|array $obj, ?string $fieldName = null, ?string $className = null)
     {
         $path = $this->resolvePath($obj, $fieldName, $className, true);
